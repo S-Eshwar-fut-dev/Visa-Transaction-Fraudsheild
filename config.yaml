@@ -1,0 +1,44 @@
+# config.yaml
+data:
+  raw_path: "data/raw/creditcard.csv"
+  processed_dir: "data/processed"
+
+splits:
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  random_seed: 42
+
+augmentation:
+  synthetic_ring_users: 3
+  synthetic_ring_merchants: 2
+  synthetic_transactions: 500
+
+features:
+  rolling_windows: ["1H", "3H", "24H"]
+  embed_dim: 12
+  velocity_features: ["count", "sum", "unique_merchant"]
+  geo_speed_threshold_kmh: 1000
+
+gnn:
+  walk_length: 10
+  walk_number: 20
+  p: 1.0
+  q: 1.0
+  workers: 4
+
+model:
+  scale_pos_weight: "auto"
+  early_stopping_rounds: 15
+  eval_metric: "aucpr"
+  optuna_trials: 50
+
+thresholds:
+  target_precision: 0.90
+  ring_contagion_threshold: 0.1
+
+paths:
+  model_output: "models/pipeline.pkl"
+  embeddings_cache: "models/precomputed_embeds.pkl"
+  explainer_output: "models/explainer.pkl"
+  logs: "logs/training.log"
