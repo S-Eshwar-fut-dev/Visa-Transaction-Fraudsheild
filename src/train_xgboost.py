@@ -28,29 +28,27 @@ class FraudDetectionModel:
         self.model = None
         self.best_params = None
         self.best_threshold = None
-        
+    
     def _objective(
         self,
         trial: optuna.Trial,
-        X_train: pd.DataFrame,
-        y_train: pd.Series,
-        X_val: pd.DataFrame,
-        y_val: pd.Series,
+        dtrain: xgb.DMatrix,
+        dval: xgb.DMatrix,
         scale_pos_weight: float
     ) -> float:
         """Optuna objective function."""
-        
+
         params = {
             'objective': 'binary:logistic',
             'eval_metric': 'aucpr',
             'scale_pos_weight': scale_pos_weight,
             'random_state': self.random_state,
             'tree_method': 'hist',  # Fast histogram-based
-            
+
             # Hyperparameters to tune
             'max_depth': trial.suggest_int('max_depth', 3, 10),
             'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
-            'n_estimators': trial.suggest_int('n_estimators', 50, 300),
+            'num_boost_round': trial.suggest_int('num_boost_round', 50, 300),
             'subsample': trial.suggest_float('subsample', 0.6, 1.0),
             'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0),
             'min_child_weight': trial.suggest_int('min_child_weight', 1, 10),
@@ -58,20 +56,22 @@ class FraudDetectionModel:
             'reg_alpha': trial.suggest_float('reg_alpha', 0, 2),
             'reg_lambda': trial.suggest_float('reg_lambda', 0, 2),
         }
-        
-        model = xgb.XGBClassifier(**params)
-        
-        model.fit(
-            X_train, y_train,
-            eval_set=[(X_val, y_val)],
-            early_stopping_rounds=15,
-            verbose=False
+
+        num_boost_round = params.pop('num_boost_round')
+        model = xgb.train(
+            params,
+            dtrain,
+            num_boost_round=num_boost_round,
+            evals=[(dval, 'val')],
+            callbacks=[xgb.callback.EarlyStopping(rounds=15, metric_name='aucpr')],
+            verbose_eval=False
         )
-        
+
         # Evaluate on validation set
-        y_proba = model.predict_proba(X_val)[:, 1]
-        pr_auc = average_precision_score(y_val, y_proba)
-        
+        y_proba = model.predict(dval)
+        y_true = dval.get_label()
+        pr_auc = average_precision_score(y_true, y_proba)
+
         return pr_auc
     
     def tune_hyperparameters(
@@ -84,39 +84,43 @@ class FraudDetectionModel:
     ) -> Dict:
         """
         Hyperparameter tuning with Optuna.
-        
+
         Args:
             X_train, y_train: Training data
             X_val, y_val: Validation data
             n_trials: Number of Optuna trials
-            
+
         Returns:
             Dictionary with best parameters
         """
         logger.info(f"Starting hyperparameter tuning ({n_trials} trials)...")
-        
+
         # Calculate class weights
-        scale_pos_weight = (y_train == 0).sum() / (y_train == 1).sum()
+        scale_pos_weight = min((y_train == 0).sum() / (y_train == 1).sum(), 50)
         logger.info(f"Class imbalance ratio: {scale_pos_weight:.2f}")
-        
+
+        # Create DMatrix with feature names for consistent importance mapping
+        dtrain = xgb.DMatrix(X_train, label=y_train, feature_names=self.feature_cols)
+        dval = xgb.DMatrix(X_val, label=y_val, feature_names=self.feature_cols)
+
         # Create Optuna study
         study = optuna.create_study(
             direction='maximize',
             sampler=TPESampler(seed=self.random_state)
         )
-        
+
         # Optimize
         study.optimize(
             lambda trial: self._objective(
-                trial, X_train, y_train, X_val, y_val, scale_pos_weight
+                trial, dtrain, dval, scale_pos_weight
             ),
             n_trials=n_trials,
             show_progress_bar=True
         )
-        
+
         logger.info(f"Best PR-AUC: {study.best_value:.4f}")
         logger.info(f"Best params: {study.best_params}")
-        
+
         # Add fixed params
         self.best_params = {
             **study.best_params,
@@ -126,7 +130,7 @@ class FraudDetectionModel:
             'random_state': self.random_state,
             'tree_method': 'hist'
         }
-        
+
         return self.best_params
     
     def train(
@@ -139,7 +143,7 @@ class FraudDetectionModel:
     ):
         """
         Train final model with given or tuned parameters.
-        
+
         Args:
             X_train, y_train: Training data
             X_val, y_val: Validation data
@@ -149,18 +153,20 @@ class FraudDetectionModel:
             if self.best_params is None:
                 raise ValueError("Must tune hyperparameters or provide params")
             params = self.best_params
-        
+
         logger.info("Training final model...")
-        
-        self.model = xgb.XGBClassifier(**params)
-        
-        self.model.fit(
-            X_train, y_train,
-            eval_set=[(X_train, y_train), (X_val, y_val)],
-            early_stopping_rounds=15,
-            verbose=True
+
+        dtrain = xgb.DMatrix(X_train, label=y_train, feature_names=self.feature_cols)
+        dval = xgb.DMatrix(X_val, label=y_val, feature_names=self.feature_cols)
+        self.model = xgb.train(
+            params,
+            dtrain,
+            num_boost_round=params.get('num_boost_round', 100),
+            evals=[(dtrain, 'train'), (dval, 'val')],
+            callbacks=[xgb.callback.EarlyStopping(rounds=15, metric_name='aucpr')],
+            verbose_eval=True
         )
-        
+
         logger.info("Model training complete")
     
     def find_optimal_threshold(
@@ -171,39 +177,46 @@ class FraudDetectionModel:
     ) -> float:
         """
         Find decision threshold for target precision.
-        
+
         Args:
             X_val, y_val: Validation data
             target_precision: Minimum precision to maintain
-            
+
         Returns:
             Optimal threshold
         """
-        y_proba = self.model.predict_proba(X_val)[:, 1]
-        
+        dval = xgb.DMatrix(X_val)
+        y_proba = self.model.predict(dval)
+
         precisions, recalls, thresholds = precision_recall_curve(y_val, y_proba)
-        
+
         # Find threshold that achieves target precision
         valid_idx = np.where(precisions >= target_precision)[0]
-        
+
         if len(valid_idx) == 0:
             logger.warning(f"Could not achieve {target_precision} precision")
             # Use threshold that maximizes F1
             f1_scores = 2 * (precisions * recalls) / (precisions + recalls + 1e-10)
             best_idx = np.argmax(f1_scores)
-            self.best_threshold = thresholds[best_idx] if best_idx < len(thresholds) else 0.5
+            if best_idx == 0:
+                self.best_threshold = 0.0
+            else:
+                self.best_threshold = thresholds[best_idx - 1]
         else:
             # Use threshold with highest recall at target precision
             best_idx = valid_idx[np.argmax(recalls[valid_idx])]
-            self.best_threshold = thresholds[best_idx] if best_idx < len(thresholds) else 0.5
-        
+            if best_idx == 0:
+                self.best_threshold = 0.0
+            else:
+                self.best_threshold = thresholds[best_idx - 1]
+
         logger.info(f"Optimal threshold: {self.best_threshold:.4f} "
                    f"(Precision: {precisions[best_idx]:.3f}, Recall: {recalls[best_idx]:.3f})")
-        
+
         return self.best_threshold
 
 def evaluate_model(
-    model: xgb.XGBClassifier,
+    model: xgb.Booster,
     X_val: pd.DataFrame,
     y_val: pd.Series,
     threshold: float = 0.5,
@@ -211,19 +224,20 @@ def evaluate_model(
 ) -> Dict:
     """
     Comprehensive model evaluation.
-    
+
     Args:
         model: Trained model
         X_val, y_val: Validation data
         threshold: Decision threshold
         contagion_threshold: Threshold for ring detection
-        
+
     Returns:
         Dictionary of metrics
     """
     logger.info("Evaluating model...")
-    
-    y_proba = model.predict_proba(X_val)[:, 1]
+
+    dval = xgb.DMatrix(X_val)
+    y_proba = model.predict(dval)
     y_pred = (y_proba >= threshold).astype(int)
     
     # Overall metrics
@@ -239,7 +253,7 @@ def evaluate_model(
     # Ring-specific metrics (high contagion subset)
     if 'contagion_risk' in X_val.columns:
         ring_mask = X_val['contagion_risk'] > contagion_threshold
-        if ring_mask.sum() > 0:
+        if ring_mask.sum() > 0 and y_val[ring_mask].sum() > 0:
             ring_f1 = f1_score(y_val[ring_mask], y_pred[ring_mask])
             ring_recall = recall_score(y_val[ring_mask], y_pred[ring_mask])
         else:
@@ -345,14 +359,15 @@ def train_and_eval(
     )
     
     # Feature importance
+    importance_dict = fraud_model.model.get_score(importance_type='gain')
     feature_importance = pd.DataFrame({
-        'feature': feature_cols,
-        'importance': fraud_model.model.feature_importances_
+        'feature': list(importance_dict.keys()),
+        'importance': list(importance_dict.values())
     }).sort_values('importance', ascending=False)
-    
+
     logger.info("\nTop 10 Features:")
     logger.info(feature_importance.head(10).to_string(index=False))
-    
+
     return {
         'model': fraud_model.model,
         'feature_cols': feature_cols,
@@ -367,15 +382,15 @@ if __name__ == "__main__":
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    
+
     from load_data import load_and_split
     from feature_engineering import engineer_features
     from gnn_contagion import build_and_embed_graph
-    
+
     train, val, test = load_and_split()
     train, val, test = engineer_features(train, val, test)
     train, val, test, _ = build_and_embed_graph(train, val, test)
-    
+
     # Define features
     feature_cols = [
         # Velocity
@@ -393,9 +408,9 @@ if __name__ == "__main__":
         'contagion_risk',
         'user_embed_0', 'user_embed_1', 'user_embed_2'
     ]
-    
+
     results = train_and_eval(train, val, feature_cols, n_trials=20)
-    
-    # Save model
-    joblib.dump(results['model'], 'models/xgb_model.pkl')
-    logger.info("Model saved to models/xgb_model.pkl")
+
+    # Save model in JSON format
+    results['model'].save_model('models/xgb_model.json')
+    logger.info("Model saved to models/xgb_model.json")
