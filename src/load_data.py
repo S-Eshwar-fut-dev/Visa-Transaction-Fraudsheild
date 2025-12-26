@@ -56,8 +56,8 @@ def load_and_split(
     except Exception as e:
         raise DataLoadError(f"Failed to read CSV: {str(e)}")
     
-    # Validate required columns
-    required_cols = ['Time', 'Amount', 'Class'] + [f'V{i}' for i in range(1, 29)]
+    # Validate required columns (only those used in the model)
+    required_cols = ['Time', 'Amount', 'Class', 'V1', 'V2', 'V4', 'V11']
     validate_dataframe(df, required_cols)
     
     # Convert Time to datetime (seconds since first transaction)

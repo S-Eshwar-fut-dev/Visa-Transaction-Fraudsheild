@@ -220,7 +220,7 @@ def evaluate_model(
     X_val: pd.DataFrame,
     y_val: pd.Series,
     threshold: float = 0.5,
-    contagion_threshold: float = 0.1
+    contagion_threshold: float = 0.05
 ) -> Dict:
     """
     Comprehensive model evaluation.
