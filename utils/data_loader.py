@@ -10,7 +10,7 @@ import streamlit as st
 def load_model_and_data():
     """Load model pipeline and validation data."""
     model_path = Path("models/pipeline.pkl")
-    data_path = Path("data/processed/val.csv")
+    data_path = Path("data/processed/val_raw.csv")
     
     if not model_path.exists():
         # Fallback: try loading just the model
@@ -54,7 +54,13 @@ def create_mock_data(n=1000):
         'count_1H': np.random.poisson(2, n),
         'sum_1H': np.random.lognormal(3, 1, n),
         'unique_merchant_1H': np.random.poisson(1.5, n),
+        'count_3H': np.random.poisson(6, n),
+        'sum_3H': np.random.lognormal(3.5, 1.2, n),
+        'unique_merchant_3H': np.random.poisson(4, n),
+        'dist_prev_km': np.random.exponential(50, n),
+        'speed_kmh': np.random.exponential(80, n),
         'amount_zscore': np.random.randn(n),
+        'amount_to_max_ratio': np.random.beta(1, 5, n),
         'contagion_risk': np.random.beta(2, 20, n),
         'is_impossible_travel': np.random.choice([0, 1], n, p=[0.99, 0.01]),
         'merchant_novelty': np.random.choice([0, 1], n, p=[0.7, 0.3])

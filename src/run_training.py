@@ -49,7 +49,7 @@ def main():
     logger = setup_logging()
     
     logger.info("=" * 80)
-    logger.info("SIGMA FRAUDSHIELD 2.0 - MODEL TRAINING PIPELINE")
+    logger.info("Visa Fraudshield - MODEL TRAINING PIPELINE")
     logger.info("=" * 80)
     logger.info(f"Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
