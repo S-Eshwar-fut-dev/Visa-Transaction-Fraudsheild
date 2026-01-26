@@ -4,21 +4,7 @@ import plotly.express as px
 import numpy as np
 import pandas as pd
 
-# Glassmorphic color scheme
-GLASS_THEME = {
-    'bg_gradient': 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
-    'card_bg': 'rgba(255, 255, 255, 0.08)',
-    'card_border': 'rgba(255, 255, 255, 0.15)',
-    'text_primary': '#e2e8f0',
-    'text_muted': '#94a3b8',
-    'accent_emerald': '#10b981',
-    'accent_blue': '#3b82f6',
-    'accent_red': '#ef4444',
-    'accent_amber': '#fbbf24',
-    'grid_color': 'rgba(100, 116, 139, 0.2)',
-    'paper_bg': 'rgba(15, 23, 42, 0.3)',
-    'plot_bg': 'rgba(30, 41, 59, 0.4)'
-}
+from utils.styles import GLASS_THEME
 
 def create_3d_scatter(df, predictions, x_col='amount_zscore', y_col='contagion_risk', z_col='count_1h'):
     """Create immersive 3D feature space visualization."""
