@@ -1,4 +1,4 @@
-# 🛡️ Sigma FraudShield 2.0
+# 🛡️ FraudShield
 > **AI-Powered Real-Time Fraud Detection Command Center**
 
 ![UI Preview](https://img.shields.io/badge/Status-Active-success?style=for-the-badge) ![Python](https://img.shields.io/badge/Python-3.9+-blue?style=for-the-badge) ![Streamlit](https://img.shields.io/badge/Streamlit-1.32+-ff4b4b?style=for-the-badge)
@@ -50,8 +50,8 @@ Sigma FraudShield 2.0 is a next-generation fraud detection platform designed for
 
 1.  **Clone the repository**
     ```bash
-    git clone https://github.com/S-Eshwar-fut-dev/Visa-Transaction-Fraudsheild.git
-    cd Visa-Transaction-Fraudsheild
+    git clone https://github.com/S-Eshwar-fut-dev/Fraudsheild.git
+    cd Fraudsheild
     ```
 
 2.  **Create a virtual environment**
@@ -88,7 +88,7 @@ Sigma FraudShield 2.0 is a next-generation fraud detection platform designed for
 ## 📂 Project Structure
 
 ```text
-Visa-Transaction-Fraudsheild/
+Fraudsheild/
 ├── app.py                  # Main Entry Point (Command Center)
 ├── pages/
 │   ├── 1_Metrics.py        # Model Performance Dashboard
