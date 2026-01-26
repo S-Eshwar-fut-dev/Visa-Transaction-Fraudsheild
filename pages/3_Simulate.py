@@ -8,39 +8,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils.viz import GLASS_THEME
+from utils.styles import load_css, GLASS_THEME
+from utils.components import animated_separator
 
 st.set_page_config(page_title="ROI Simulator", page_icon="📈", layout="wide")
-
-st.markdown("""
-<style>
-    .main { 
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-        font-family: 'Inter', sans-serif;
-    }
-    .roi-card {
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 16px;
-        padding: 2rem;
-        margin: 1rem 0;
-        text-align: center;
-    }
-    .big-number {
-        font-size: 3rem;
-        font-weight: 800;
-        color: #10b981;
-        margin: 0;
-    }
-    .slider-card {
-        background: rgba(255, 255, 255, 0.06);
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin: 1rem 0;
-    }
-</style>
-""", unsafe_allow_html=True)
+load_css()
 
 st.title("📈 Revenue Uplift Simulator")
 st.markdown("Calculate the business impact of reduced false declines")
@@ -51,7 +23,7 @@ st.markdown("### 🎚️ Simulation Parameters")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.markdown('<div class="slider-card">', unsafe_allow_html=True)
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     monthly_txs = st.slider(
         "Monthly Transactions (K)",
         min_value=100,
@@ -63,7 +35,7 @@ with col1:
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col2:
-    st.markdown('<div class="slider-card">', unsafe_allow_html=True)
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     avg_tx_value = st.slider(
         "Avg Transaction Value ($)",
         min_value=10,
@@ -75,7 +47,7 @@ with col2:
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col3:
-    st.markdown('<div class="slider-card">', unsafe_allow_html=True)
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
     baseline_fpr = st.slider(
         "Baseline False Positive Rate (%)",
         min_value=0.5,
@@ -101,45 +73,33 @@ fpr_improvement = max(0, baseline_fpr - model_fpr)
 uplift_pct = (fpr_improvement / baseline_fpr * 100) if baseline_fpr > 0 else 0
 
 # Display impact
-st.markdown("---")
+animated_separator()
 st.markdown("### 💰 Financial Impact")
 
 col_metric1, col_metric2, col_metric3, col_metric4 = st.columns(4)
 
-with col_metric1:
-    st.markdown(f"""
-    <div class="roi-card">
-        <p style="color: #94a3b8; font-size: 0.875rem; margin: 0;">Recovered Transactions/Mo</p>
-        <p class="big-number">{recovered_txs:,.0f}</p>
+def roi_metric(label, value):
+    return f"""
+    <div class="glass-card animate-enter">
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">{label}</p>
+        <p style="font-size: 2.5rem; font-weight: 800; color: var(--accent-emerald); margin: 0.5rem 0 0 0; font-family: 'JetBrains Mono';">{value}</p>
     </div>
-    """, unsafe_allow_html=True)
+    """
+
+with col_metric1:
+    st.markdown(roi_metric("Recovered TXs/Mo", f"{recovered_txs:,.0f}"), unsafe_allow_html=True)
 
 with col_metric2:
-    st.markdown(f"""
-    <div class="roi-card">
-        <p style="color: #94a3b8; font-size: 0.875rem; margin: 0;">Monthly Revenue Uplift</p>
-        <p class="big-number">${monthly_revenue_uplift:,.0f}</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(roi_metric("Monthly Uplift", f"${monthly_revenue_uplift:,.0f}"), unsafe_allow_html=True)
 
 with col_metric3:
-    st.markdown(f"""
-    <div class="roi-card">
-        <p style="color: #94a3b8; font-size: 0.875rem; margin: 0;">Annual Revenue Uplift</p>
-        <p class="big-number">${monthly_revenue_uplift * 12:,.0f}</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(roi_metric("Annual Uplift", f"${monthly_revenue_uplift * 12:,.0f}"), unsafe_allow_html=True)
 
 with col_metric4:
-    st.markdown(f"""
-    <div class="roi-card">
-        <p style="color: #94a3b8; font-size: 0.875rem; margin: 0;">FPR Reduction</p>
-        <p class="big-number">{uplift_pct:.1f}%</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(roi_metric("FPR Reduction", f"{uplift_pct:.1f}%"), unsafe_allow_html=True)
 
 # Cumulative uplift chart
-st.markdown("---")
+animated_separator()
 st.markdown("### 📊 Cumulative Revenue Projection (36 Months)")
 
 months = np.arange(1, 37)
@@ -191,7 +151,7 @@ fig_cumulative.update_layout(
 st.plotly_chart(fig_cumulative, use_container_width=True)
 
 # ROI Table
-st.markdown("---")
+animated_separator()
 st.markdown("### 📋 3-Year ROI Breakdown")
 
 maintenance_annual = 20000
@@ -226,7 +186,7 @@ st.dataframe(
 )
 
 # Cost breakdown
-st.markdown("---")
+animated_separator()
 st.markdown("### 💵 Cost vs Revenue Comparison")
 
 col_cost, col_revenue = st.columns(2)
@@ -253,7 +213,7 @@ with col_cost:
     )])
     
     fig_cost.update_layout(
-        title=dict(text="Total Cost Breakdown (3 Years)", font=dict(size=16)),
+        title=dict(text="Total Cost Breakdown (3 Years)", font=dict(size=16, color=GLASS_THEME['text_primary'])),
         paper_bgcolor='rgba(0,0,0,0)',
         font=dict(color=GLASS_THEME['text_primary']),
         height=350,
@@ -282,7 +242,7 @@ with col_revenue:
     )])
     
     fig_revenue.update_layout(
-        title=dict(text="Annual Revenue Uplift", font=dict(size=16)),
+        title=dict(text="Annual Revenue Uplift", font=dict(size=16, color=GLASS_THEME['text_primary'])),
         yaxis=dict(title="Revenue ($)", gridcolor=GLASS_THEME['grid_color']),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor=GLASS_THEME['plot_bg'],
@@ -294,7 +254,7 @@ with col_revenue:
     st.plotly_chart(fig_revenue, use_container_width=True)
 
 # Sensitivity analysis
-st.markdown("---")
+animated_separator()
 st.markdown("### 🎯 Sensitivity Analysis")
 
 st.info("💡 Explore how changes in key parameters affect ROI")
@@ -360,7 +320,7 @@ fig_sensitivity.update_layout(
 st.plotly_chart(fig_sensitivity, use_container_width=True)
 
 # Footer insights
-st.markdown("---")
+animated_separator()
 st.success(f"""
 ### 🎉 Key Takeaway
 
