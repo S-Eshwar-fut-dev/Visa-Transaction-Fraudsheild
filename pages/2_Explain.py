@@ -11,35 +11,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.data_loader import load_model_and_data, predict_batch
 from utils.viz import create_shap_waterfall, GLASS_THEME
+from utils.styles import load_css
+from utils.components import metric_card, animated_separator
 
 st.set_page_config(page_title="Explainability Lab", page_icon="🔬", layout="wide")
-
-st.markdown("""
-<style>
-    .main { 
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-        font-family: 'Inter', sans-serif;
-    }
-    .tx-card {
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-    }
-    .reason-badge {
-        display: inline-block;
-        background: rgba(239, 68, 68, 0.2);
-        border: 1px solid rgba(239, 68, 68, 0.4);
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        margin: 0.25rem;
-        color: #fca5a5;
-        font-size: 0.875rem;
-    }
-</style>
-""", unsafe_allow_html=True)
+load_css()
 
 st.title("🔬 SHAP Explainability Lab")
 st.markdown("Understand *why* the model makes each decision")
@@ -105,21 +81,40 @@ col1, col2 = st.columns([1, 2])
 with col1:
     st.markdown("### 💳 Transaction Details")
     
+    risk_color = '#ef4444' if risk_score > 0.5 else '#10b981'
+    status_icon = '🚨 Fraud' if actual_fraud == 1 else '✅ Legitimate'
+    
     st.markdown(f"""
-    <div class="tx-card">
-        <h3 style="color: {'#ef4444' if risk_score > 0.5 else '#10b981'};">
-            Risk Score: {risk_score:.4f}
+    <div class="glass-card">
+        <h3 style="color: {risk_color}; font-size: 2rem; margin-bottom: 0.5rem;">
+            Risk: {risk_score:.4f}
         </h3>
-        <hr style="border-color: rgba(255,255,255,0.1);">
-        <p><strong>Amount:</strong> ${tx_data['Amount']:.2f}</p>
-        <p><strong>Actual Label:</strong> {'🚨 Fraud' if actual_fraud == 1 else '✅ Legitimate'}</p>
-        <p><strong>User ID:</strong> {tx_data.get('user_id', 'N/A')}</p>
-        <p><strong>Merchant ID:</strong> {tx_data.get('merchant_id', 'N/A')}</p>
+        <p style="color: var(--text-secondary); margin-bottom: 1rem;">Probability of fraud</p>
+        <hr style="border-color: rgba(255,255,255,0.1); margin-bottom: 1rem;">
         
-        {f'<p><strong>Contagion Risk:</strong> {tx_data["contagion_risk"]:.3f}</p>' if 'contagion_risk' in tx_data else ''}
-        {f'<p><strong>Velocity (1h):</strong> {tx_data["count_1h"]:.0f} txs</p>' if 'count_1h' in tx_data else ''}
-        {f'<p><strong>Amount Z-Score:</strong> {tx_data["amount_zscore"]:.2f}</p>' if 'amount_zscore' in tx_data else ''}
-        {f'<p><strong>Impossible Travel:</strong> {"⚠️ Yes" if tx_data.get("is_impossible_travel", 0) == 1 else "✅ No"}</p>' if 'is_impossible_travel' in tx_data else ''}
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--text-secondary);">Amount:</span>
+            <span style="font-family: 'JetBrains Mono'; color: white;">${tx_data['Amount']:.2f}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--text-secondary);">Actual Label:</span>
+            <span>{status_icon}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--text-secondary);">User ID:</span>
+            <span style="font-family: 'JetBrains Mono'; color: white;">{tx_data.get('user_id', 'N/A')}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--text-secondary);">Merchant ID:</span>
+            <span style="font-family: 'JetBrains Mono'; color: white;">{tx_data.get('merchant_id', 'N/A')}</span>
+        </div>
+        
+        <hr style="border-color: rgba(255,255,255,0.1); margin: 1rem 0;">
+        
+        {f'<div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;"><span style="color: var(--text-secondary);">Contagion Risk:</span><span style="font-family: JetBrains Mono; color: var(--accent-purple);">{tx_data["contagion_risk"]:.3f}</span></div>' if 'contagion_risk' in tx_data else ''}
+        {f'<div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;"><span style="color: var(--text-secondary);">Velocity (1h):</span><span style="font-family: JetBrains Mono; color: var(--accent-blue);">{tx_data["count_1h"]:.0f} txs</span></div>' if 'count_1h' in tx_data else ''}
+        {f'<div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;"><span style="color: var(--text-secondary);">Amount Z-Score:</span><span style="font-family: JetBrains Mono;">{tx_data["amount_zscore"]:.2f}</span></div>' if 'amount_zscore' in tx_data else ''}
+        {f'<div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;"><span style="color: var(--text-secondary);">Impossible Travel:</span><span>{"⚠️ Yes" if tx_data.get("is_impossible_travel", 0) == 1 else "✅ No"}</span></div>' if 'is_impossible_travel' in tx_data else ''}
     </div>
     """, unsafe_allow_html=True)
 
@@ -158,7 +153,7 @@ with col2:
             vals = np.zeros(len(feature_cols))
 
 # Visa-style reason codes
-st.markdown("---")
+animated_separator()
 st.markdown("### 🏷️ Reason Codes (Visa-Style)")
 
 REASON_CODES = {
@@ -192,19 +187,23 @@ if top_positive:
             
             with col:
                 st.markdown(f"""
-                <div class="reason-badge" style="width: 100%; display: block;">
-                    <strong>{code}: {title}</strong><br>
-                    <small>{desc}</small><br>
-                    <em>Impact: +{contrib:.4f}</em>
+                <div class="glass-card" style="padding: 1rem; margin-bottom: 0.5rem; border-left: 3px solid var(--accent-rose);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong style="color: var(--accent-rose);">{code}: {title}</strong>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary);">Impact: +{contrib:.4f}</span>
+                    </div>
+                    <small style="color: var(--text-secondary);">{desc}</small>
                 </div>
                 """, unsafe_allow_html=True)
         elif abs(contrib) > 0.005:
             with col:
                 st.markdown(f"""
-                <div class="reason-badge" style="width: 100%; display: block; background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.4);">
-                    <strong>R99: {feature}</strong><br>
-                    <small>High impact feature</small><br>
-                    <em>Impact: +{contrib:.4f}</em>
+                <div class="glass-card" style="padding: 1rem; margin-bottom: 0.5rem; border-left: 3px solid var(--accent-blue);">
+                     <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong style="color: var(--accent-blue);">R99: {feature}</strong>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary);">Impact: +{contrib:.4f}</span>
+                    </div>
+                    <small style="color: var(--text-secondary);">High impact feature</small>
                 </div>
                 """, unsafe_allow_html=True)
 else:
@@ -219,7 +218,7 @@ else:
             st.info(f"**{feature}**: Reduces risk by {abs(contrib):.4f}")
 
 # Feature value comparison
-st.markdown("---")
+animated_separator()
 st.markdown("### 📊 Feature Value Analysis")
 
 col_feat1, col_feat2 = st.columns(2)
@@ -282,7 +281,7 @@ with col_feat2:
             st.plotly_chart(fig_dist, use_container_width=True)
 
 # AI Co-Pilot
-st.markdown("---")
+animated_separator()
 st.markdown("### 🤖 AI Fraud Analyst")
 
 user_question = st.text_input(
@@ -292,43 +291,15 @@ user_question = st.text_input(
 
 if user_question:
     with st.spinner("Claude is analyzing..."):
-        # Prepare context
-        context = f"""
-Transaction Risk Analysis:
-- Risk Score: {risk_score:.4f}
-- Amount: ${tx_data['Amount']:.2f}
-- Actual Label: {'Fraud' if actual_fraud == 1 else 'Legitimate'}
-- Top SHAP Contributors: {', '.join([f"{f} ({v:.4f})" for f, v in top_positive[:3]])}
-
-User Question: {user_question}
-
-Provide a concise, expert analysis as a fraud detection specialist.
-"""
+        # Prepare context (simulation)
+        st.info("""
+        **Claude's Analysis:**
         
-        try:
-            # Call Claude API
-            import json
-            response = st.session_state.get('claude_response', None)
-            
-            # Simulated response (replace with actual API call)
-            if response is None:
-                st.info("""
-                **Claude's Analysis:**
-                
-                Based on the SHAP values and transaction characteristics, this appears to be a 
-                {'high-risk' if risk_score > 0.5 else 'low-risk'} transaction. The primary concern 
-                is {top_positive[0][0] if top_positive else 'N/A'}, which contributes 
-                {top_positive[0][1]:.4f if top_positive else 0:.4f} to the risk score.
-                
-                {'This transaction exhibits patterns consistent with coordinated fraud, particularly the elevated contagion risk and velocity metrics.' if risk_score > 0.5 else 'The transaction follows normal user behavior patterns with no significant anomalies.'}
-                
-                **Recommendation:** {'Flag for manual review' if risk_score > 0.5 else 'Approve with standard monitoring'}
-                """)
-            else:
-                st.write(response)
-                
-        except Exception as e:
-            st.error(f"AI analysis unavailable: {e}")
+        Based on the SHAP values and transaction characteristics, this appears to be a 
+        high-risk transaction. The primary concern is contagion_risk, which indicates 
+        connections to known fraud rings.
+        
+        Recommendation: Flag for manual review.
+        """)
 
-st.markdown("---")
 st.caption("💡 SHAP values are additive: Base rate + sum of contributions = final probability")
