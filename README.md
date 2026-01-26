@@ -1,5 +1,11 @@
 # 🛡️ FraudShield
 > **AI-Powered Real-Time Fraud Detection Command Center**
+<img width="1912" height="1017" alt="Screenshot 2026-01-20 222659" src="https://github.com/user-attachments/assets/7487dd12-2bd2-4824-bf15-84788dc95374" />
+<img width="1915" height="1012" alt="Screenshot 2026-01-20 222639" src="https://github.com/user-attachments/assets/a689b2b7-d8a1-427d-8b4b-9807ba8f80e9" />
+<img width="1917" height="1018" alt="Screenshot 2026-01-20 222619" src="https://github.com/user-attachments/assets/75965aba-bfd1-4dc0-8079-e68d29da0ed7" />
+<img width="1912" height="1026" alt="Screenshot 2026-01-20 222600" src="https://github.com/user-attachments/assets/aa15682b-845f-40ed-a3c5-4cee7308468c" />
+<img width="1915" height="1031" alt="Screenshot 2026-01-20 222708" src="https://github.com/user-attachments/assets/e65ab9b8-1531-4d56-94c1-d58b589cff08" />
+
 
 ![UI Preview](https://img.shields.io/badge/Status-Active-success?style=for-the-badge) ![Python](https://img.shields.io/badge/Python-3.9+-blue?style=for-the-badge) ![Streamlit](https://img.shields.io/badge/Streamlit-1.32+-ff4b4b?style=for-the-badge)
 
