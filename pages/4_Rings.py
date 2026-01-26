@@ -10,25 +10,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.data_loader import load_model_and_data, predict_batch
 from utils.viz import create_3d_scatter, create_network_graph, GLASS_THEME
+from utils.styles import load_css
+from utils.components import metric_card, animated_separator
 
 st.set_page_config(page_title="Ring Hunter", page_icon="🕸️", layout="wide")
-
-st.markdown("""
-<style>
-    .main { 
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-        font-family: 'Inter', sans-serif;
-    }
-    .ring-alert {
-        background: rgba(239, 68, 68, 0.15);
-        border: 2px solid rgba(239, 68, 68, 0.4);
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-        backdrop-filter: blur(12px);
-    }
-</style>
-""", unsafe_allow_html=True)
+load_css()
 
 st.title("🕸️ Fraud Ring Hunter")
 st.markdown("Detect coordinated fraud patterns using graph analysis")
@@ -94,36 +80,37 @@ st.markdown("### 📊 Ring Detection Summary")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric(
+    metric_card(
         "Potential Ring Members",
-        len(high_risk),
-        delta=f"{len(high_risk)/len(val_data)*100:.2f}% of total"
+        f"{len(high_risk)}",
+        f"{len(high_risk)/len(val_data)*100:.2f}% of total",
+        delta_color="var(--accent-rose)"
     )
 
 with col2:
     unique_users = high_risk['user_id'].nunique() if 'user_id' in high_risk.columns else 0
-    st.metric("Unique Users", unique_users)
+    metric_card("Unique Users", f"{unique_users}", "Accounts", delta_color="normal")
 
 with col3:
     unique_merchants = high_risk['merchant_id'].nunique() if 'merchant_id' in high_risk.columns else 0
-    st.metric("Flagged Merchants", unique_merchants)
+    metric_card("Flagged Merchants", f"{unique_merchants}", "Risk Points", delta_color="normal")
 
 with col4:
     avg_contagion = high_risk['contagion_risk'].mean() if 'contagion_risk' in high_risk.columns else 0
-    st.metric("Avg Contagion Risk", f"{avg_contagion:.3f}")
+    metric_card("Avg Contagion Risk", f"{avg_contagion:.3f}", "High", delta_color="var(--accent-rose)")
 
 # Alert for detected rings
 if len(high_risk) > 10:
     st.markdown(f"""
-    <div class="ring-alert">
-        <h3 style="color: #ef4444; margin-top: 0;">🚨 Coordinated Fraud Detected</h3>
+    <div class="glass-card" style="box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); border-color: rgba(239, 68, 68, 0.5);">
+        <h3 style="color: #ef4444; margin-top: 0; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);">🚨 Coordinated Fraud Detected</h3>
         <p><strong>{len(high_risk)}</strong> transactions flagged with high contagion risk.</p>
         <p>This indicates potential <strong>fraud ring activity</strong> - multiple users coordinating with high-risk merchants.</p>
         <p><em>Recommended Action:</em> Investigate user-merchant networks, freeze suspicious accounts, alert fraud ops team.</p>
     </div>
     """, unsafe_allow_html=True)
 
-st.markdown("---")
+animated_separator()
 
 # 3D Feature Space
 st.markdown("### 🌌 3D Transaction Space")
@@ -157,7 +144,7 @@ fig_3d = create_3d_scatter(
 
 st.plotly_chart(fig_3d, use_container_width=True)
 
-st.markdown("---")
+animated_separator()
 
 # Network graph
 st.markdown("### 🕸️ User-Merchant Network")
@@ -187,7 +174,7 @@ else:
     st.info("Network visualization requires user_id and merchant_id columns")
 
 # Ring details table
-st.markdown("---")
+animated_separator()
 st.markdown("### 📋 High-Risk Transaction Details")
 
 if len(high_risk) > 0:
@@ -217,7 +204,7 @@ else:
     st.success("✅ No high-risk rings detected with current threshold")
 
 # Geographic distribution (if available)
-st.markdown("---")
+animated_separator()
 st.markdown("### 🗺️ Geographic Distribution")
 
 if 'V4' in sample_data.columns and 'V11' in sample_data.columns:
@@ -283,7 +270,7 @@ else:
     st.info("Geographic visualization requires location features (V4, V11)")
 
 # Temporal patterns
-st.markdown("---")
+animated_separator()
 st.markdown("### ⏰ Temporal Fraud Patterns")
 
 if 'Time' in sample_data.columns:
@@ -327,8 +314,8 @@ if 'Time' in sample_data.columns:
     
     st.plotly_chart(fig_temporal, use_container_width=True)
     
-    peak_hour = hour_fraud.loc[hour_fraud['Class'].idxmax(), 'Hour']
-    st.info(f"🔥 Peak fraud activity: **{int(peak_hour)}:00 - {int(peak_hour)+1}:00**")
+    if not hour_fraud['Class'].empty:
+        peak_hour = hour_fraud.loc[hour_fraud['Class'].idxmax(), 'Hour']
+        st.info(f"🔥 Peak fraud activity: **{int(peak_hour)}:00 - {int(peak_hour)+1}:00**")
 
-st.markdown("---")
 st.caption("💡 Fraud rings often show clustering in time, geography, and merchant networks")
