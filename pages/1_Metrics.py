@@ -5,39 +5,17 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from sklearn.metrics import precision_recall_curve, roc_curve, auc
+from sklearn.metrics import precision_recall_curve, roc_curve, auc, precision_score, recall_score, f1_score, average_precision_score, roc_auc_score, confusion_matrix
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.data_loader import load_model_and_data, predict_batch
 from utils.viz import create_pr_gauge, create_feature_importance_bar, GLASS_THEME
+from utils.styles import load_css
+from utils.components import metric_card, animated_separator
 
 st.set_page_config(page_title="Metrics Dashboard", page_icon="📊", layout="wide")
-
-# Apply glassmorphic CSS
-st.markdown("""
-<style>
-    .main { 
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-        font-family: 'Inter', sans-serif;
-    }
-    .metric-card {
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin: 0.5rem 0;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    }
-    .stMetric {
-        background: rgba(255, 255, 255, 0.06);
-        padding: 1rem;
-        border-radius: 12px;
-        border-left: 4px solid #10b981;
-    }
-</style>
-""", unsafe_allow_html=True)
+load_css()
 
 st.title("📊 Performance Metrics Dashboard")
 st.markdown("Real-time model evaluation on validation dataset")
@@ -51,6 +29,7 @@ if model is None:
 
 # Compute predictions
 with st.spinner("Computing predictions..."):
+    # Using a subset for faster interaction if needed, but keeping original logic for now
     X_val = val_data[feature_cols].fillna(0)
     y_val = val_data['Class'] if 'Class' in val_data.columns else np.zeros(len(val_data))
     y_pred_proba = predict_batch(model, X_val)
@@ -58,8 +37,6 @@ with st.spinner("Computing predictions..."):
     threshold = 0.4121  # From training
 
 # Metrics computation
-from sklearn.metrics import average_precision_score, roc_auc_score, precision_score, recall_score, f1_score
-
 y_pred = (y_pred_proba >= threshold).astype(int)
 
 pr_auc = average_precision_score(y_val, y_pred_proba) if y_val.sum() > 0 else 0
@@ -68,21 +45,21 @@ precision = precision_score(y_val, y_pred) if y_val.sum() > 0 else 0
 recall = recall_score(y_val, y_pred) if y_val.sum() > 0 else 0
 f1 = f1_score(y_val, y_pred) if y_val.sum() > 0 else 0
 
-# Top metrics
+# Top metrics in glass cards
 col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
-    st.metric("PR-AUC", f"{pr_auc:.4f}", help="Area under Precision-Recall curve")
+    metric_card("PR-AUC", f"{pr_auc:.4f}", "Target: >0.80")
 with col2:
-    st.metric("ROC-AUC", f"{roc_auc:.4f}", help="Area under ROC curve")
+    metric_card("ROC-AUC", f"{roc_auc:.4f}", "Target: >0.95")
 with col3:
-    st.metric("Precision", f"{precision:.3f}", help="True positives / All positives")
+    metric_card("Precision", f"{precision:.3f}", "High Trust")
 with col4:
-    st.metric("Recall", f"{recall:.3f}", help="True positives / Actual fraud")
+    metric_card("Recall", f"{recall:.3f}", "Broad Coverage")
 with col5:
-    st.metric("F1 Score", f"{f1:.3f}", help="Harmonic mean of precision/recall")
+    metric_card("F1 Score", f"{f1:.3f}", "Balanced")
 
-st.markdown("---")
+animated_separator()
 
 # PR-AUC Gauge + Feature Importance
 col_left, col_right = st.columns([1, 1])
@@ -93,10 +70,8 @@ with col_left:
     st.plotly_chart(fig_gauge, use_container_width=True)
     
     # Confusion matrix
-    from sklearn.metrics import confusion_matrix
-    cm = confusion_matrix(y_val, y_pred)
-    
     st.markdown("### 📊 Confusion Matrix")
+    cm = confusion_matrix(y_val, y_pred)
     
     fig_cm = go.Figure(data=go.Heatmap(
         z=[[cm[1,1], cm[1,0]], [cm[0,1], cm[0,0]]],
@@ -134,7 +109,7 @@ with col_right:
     except:
         st.warning("Feature importance not available")
 
-st.markdown("---")
+animated_separator()
 
 # PR and ROC Curves
 col_pr, col_roc = st.columns(2)
@@ -237,7 +212,7 @@ with col_roc:
         st.info("No fraud cases in validation set")
 
 # Threshold analysis
-st.markdown("---")
+animated_separator()
 st.markdown("### 🎚️ Threshold Analysis")
 
 if y_val.sum() > 0:
@@ -309,6 +284,4 @@ if y_val.sum() > 0:
 else:
     st.info("Threshold analysis requires fraud cases")
 
-# Footer
-st.markdown("---")
 st.caption("💡 Tip: Adjust threshold in production based on business risk tolerance")
